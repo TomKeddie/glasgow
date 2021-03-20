@@ -66,32 +66,43 @@ class AccessMultiplexerInterface(Module, metaclass=ABCMeta):
     def get_pin_name(self, pin):
         pass
 
-    def get_pins(self, pins, name=None):
-        triple = TSTriple(len(pins), name=name)
-        for n, pin in enumerate(pins):
-            self.build_pin_tristate(pin, triple.oe, triple.o[n], triple.i[n])
+    def get_pins(self, pins, name=None, pin_type=None):
+        if pin_type == None:
+            io = TSTriple(len(pins), name=name)
+            for n, pin in enumerate(pins):
+                self.build_pin_tristate(pin, io.oe, io.o[n], io.i[n])
+        elif pin_type == "iddr":
+            # WIP
+            io = None
+            pass
 
         if name is None:
             name = "-".join([self.get_pin_name(pins) for pins in pins])
         if self.analyzer:
-            self.analyzer.add_pin_event(self.applet, name, triple)
+            self.analyzer.add_pin_event(self.applet, name, io)
 
-        return triple
+        return io
 
-    def get_pin(self, pin, name=None):
-        return self.get_pins([pin], name)
+    def get_pin(self, pin, name=None, pin_type=None):
+        return self.get_pins([pin], name, pin_type)
 
     def get_pads(self, args, pins=[], pin_sets=[]):
         pad_args = {}
 
         for pin in pins:
-            pin_num = getattr(args, "pin_{}".format(pin))
+            if isinstance(pin, dict):
+                pin_name = pin["name"]
+                pin_type = pin["type"]
+            else:
+                pin_name = pin
+                pin_type = None
+            pin_num = getattr(args, "pin_{}".format(pin_name))
             if pin_num is None:
-                self.logger.debug("not assigning pin %r to any device pin", pin)
+                self.logger.debug("not assigning pin %r to any device pin", pin_name)
             else:
                 self.logger.debug("assigning pin %r to device pin %s",
-                    pin, self.get_pin_name(pin_num))
-                pad_args[pin] = self.get_pin(pin_num, name=pin)
+                    pin_name, self.get_pin_name(pin_num))
+                pad_args[pin] = self.get_pin(pin_num, name=pin_name, pin_type=pin_type)
 
         for pin_set in pin_sets:
             pin_nums = getattr(args, "pin_set_{}".format(pin_set))
